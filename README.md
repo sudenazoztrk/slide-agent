@@ -1,79 +1,52 @@
-# Paper Pilot
+Proje ne yapıyor? (bir cümlede)
 
-Akademik makaleler ve teknik dokümanlar üzerinde çalışan, çok adımlı (agentic)
-bir araştırma asistanı. Amaç sadece "çalışan bir demo" yapmak değil; production
-bir AI sisteminde karşına çıkacak her katmanı (RAG, agent orchestration,
-evaluation/guardrails, model serving, MLOps, deployment) tek bir projede
-uçtan uca deneyimlemek.
+Ders slaytlarını (PDF) yükleyip doğal dilde soru sorabildiğin, cevabını slayt içeriğine dayandıran, gerektiğinde web'e çıkıp ek bilgi getirebilen ve hangi slayttan hangi bilgiyi aldığını gösterebilen bir soru-cevap sistemi.
 
-## Neden bu proje?
+Kullanıcı deneyimi nasıl olacak
+Sen bir ders dosyasını (örneğin BBM416'nın bir haftalık slaytları) sisteme veriyorsun.
+"Attention rollout ile GMAR arasındaki fark nedir?" gibi bir soru soruyorsun.
+Sistem önce kendi slaytlarında arıyor, ilgili slaytları buluyor.
+Eğer slaytlar yeterince açıklayıcı değilse (çoğu zaman değildir, slaytlar özettir), kendi kararıyla web'e çıkıp ek bağlam topluyor.
+Sana bir cevap veriyor: "Slayt 14'e göre X... (ayrıca web'den: Y...)" gibi, kaynağını belli ederek.
 
-Klasik bir "chatbot with RAG" demosu ile bir AI Engineer'ın gerçekte
-uğraştığı problemler arasında büyük fark var. Bu fark genelde şurada:
-- Vector search'ün tek başına yetmediği, agent'ın *ne zaman* hangi tool'u
-  çağıracağına karar vermesi gereken durumlar
-- "Model doğru cevap verdi mi?" sorusunu insan gözüyle değil, otomatik
-  metriklerle (RAGAS, LLM-as-judge) cevaplayabilmek
-- Aynı sistemi hem pahalı bir API modeliyle hem de ucuz/local bir modelle
-  çalıştırıp trade-off'u somut sayılarla görebilmek
-- Kodun bir Jupyter notebook'ta değil, testi olan, container'a alınmış,
-  CI'dan geçen bir serviste yaşaması
+Buradaki kritik nokta 4. adım — sistemin ne zaman web'e çıkacağına kendisinin karar vermesi. Bu yüzden buna "agent" diyoruz, düz bir soru-cevap botu demiyoruz.
 
-Bu proje bu beş noktayı sırayla inşa ediyor.
+Kullanacağımız kavramlar ve her birinin "neden"i
 
-## Mimari (özet)
+RAG (Retrieval-Augmented Generation)
+LLM'lere sadece "bilgin var mı" diye soramayız çünkü (a) senin spesifik ders slaytların model eğitilirken hiç görülmemiştir, (b) LLM'ler bilmediği şeyi bile emin bir tavırla uydurabilir (hallucination). RAG'ın mantığı: soruyu sormadan önce, ilgili slaytları bir veritabanından çekip (retrieve) LLM'e "işte kaynak, buna dayanarak cevap ver" diye veriyoruz. Yani model hafızasından değil, gözünün önündeki gerçek metinden cevap üretiyor.
 
-```
-Ingestion pipeline  ->  Vector store  ->  Agent (LangGraph)  ->  Evaluation & guardrails  ->  Serving
-   (PDF/web -> chunk)     (Qdrant)         (tool use + reasoning)   (RAGAS, LLM-as-judge)    (FastAPI + Docker)
-```
+Embedding + Vector database
+RAG'ın "ilgili slaytı bulma" kısmı nasıl çalışıyor? Metni sayısal bir vektöre çeviriyoruz (embedding) — anlamca yakın cümleler, vektör uzayında birbirine yakın noktalara düşüyor. Sorduğun soruyu da aynı şekilde vektöre çevirip, "bu vektöre en yakın slayt vektörleri hangileri" diye arıyoruz. Bunu hızlı yapabilmek için özel bir veritabanına (Qdrant gibi) ihtiyacımız var — normal bir SQL sorgusuyla "anlamca benzer" arama yapamazsın.
 
-Her ok, bir önceki bileşenin çıktısını bir sonrakinin girdisine dönüştüren
-gerçek bir arayüz (interface); yani her bileşeni birbirinden bağımsız
-test edebiliyor, birini değiştirdiğimizde diğerlerini bozmuyoruz. Bu,
-"her şeyi tek bir script'te yaz" yaklaşımının tam tersi ve production
-kodunun neden bu şekilde bölündüğünün pratik kanıtı olacak.
+Chunking
+Bir konuştuğumuz şeydi: slaytları embedding'e vermeden önce mantıklı parçalara bölmemiz gerekiyor (bizim durumumuzda doğal parça zaten "slayt"ın kendisi).
 
-## Fazlar (roadmap)
+Agent (LangGraph ile)
+Düz RAG şöyle çalışır: soru gelir → arama yapılır → cevap üretilir, tek adım. Ama biz istiyoruz ki sistem "bu soruyu cevaplamak için önce slaytlara bakayım, yetmezse web'e çıkayım, belki iki kaynağı birleştireyim" gibi çok adımlı bir karar süreci işletsin. Buna agent deniyor — LLM sadece metin üretmiyor, hangi aracı ne zaman kullanacağına da kendisi karar veriyor. LangGraph, bu çok adımlı karar sürecini yönetmemizi sağlayan bir kütüphane (bir "durum makinesi" / state machine gibi düşünebilirsin: agent bir durumdan diğerine geçiyor, her geçişte "şimdi ne yapmalıyım" diye karar veriyor).
 
-1. **Kickoff & mimari** (bu commit) — proje iskeleti, FastAPI health-check,
-   Docker, temel CI.
-2. **Production RAG + vector store** — ingestion pipeline, chunking, Qdrant,
-   hybrid search.
-3. **Agent orchestration & tool use** — LangGraph ile çok adımlı agent,
-   tool tanımları, (mümkünse) MCP.
-4. **Evaluation & guardrails** — RAGAS metrikleri, golden dataset, hallucination
-   kontrolü, prompt injection savunması.
-5. **Model serving & fine-tuning deneyi** — API model vs local quantized model
-   kıyası, küçük bir alt-görev için LoRA fine-tune.
-6. **MLOps & deployment** — MLflow/DVC, Docker Compose, monitoring, (opsiyonel)
-   Kubernetes.
+Tool'lar
+Agent'ın kullanabileceği somut yetenekler:
 
-## Klasör yapısı
+doc_search — slayt veritabanında arama yapar
+web_search — internette arama yapar
+İkisi de agent'a "fonksiyon" olarak tanımlanıyor; LLM hangisini çağıracağına, hangi parametrelerle çağıracağına kendisi karar veriyor (buna "function calling" deniyor).
 
-```
-paper-pilot/
-  app/            -> FastAPI uygulaması (Faz ilerledikçe ingestion/, agent/, eval/ alt paketleri eklenecek)
-  docker/         -> Dockerfile ve docker-compose.yml
-  tests/          -> pytest testleri
-  .github/workflows/ -> CI pipeline (lint + test, her push'ta otomatik çalışır)
-```
+Evaluation & guardrails
+Sistemi kurduktan sonra "bu iyi çalışıyor mu" sorusunu insan gözüyle her seferinde kontrol edemeyiz. Otomatik metriklerle ölçeceğiz: cevap gerçekten slayta/kaynağa sadık mı (faithfulness), yoksa model bir şeyler mi uydurdu (hallucination)?
 
-Bu yapıyı seçtik çünkü `app/` içindeki her alt paket (ingestion, agent, eval)
-kendi sorumluluğunu taşıyacak (single responsibility) ve birbirine sadece
-net fonksiyon imzaları üzerinden bağlanacak — bu da hem test yazmayı
-kolaylaştırıyor hem de "bu bug hangi katmanda" sorusuna hızlı cevap
-verdiriyor.
+Serving (FastAPI + Docker)
+Bütün bu mantığı bir web servisi haline getirip (/ask gibi bir endpoint), Docker ile paketleyeceğiz — geçen mesajda konuştuğumuz kısım.
 
-## Yerelde çalıştırma
-
-```bash
-python -m venv .venv
-source .venv/bin/activate       # Windows: .venv\Scripts\activate
-pip install -r requirements.txt
-uvicorn app.main:app --reload
-```
-
-Sonra `http://localhost:8000/health` adresine gidip `{"status": "ok"}`
-cevabını görmen yeterli — bu, Faz 0'ın tek hedefi: "iskelet ayakta duruyor
-ve dışarıdan sağlığı sorgulanabiliyor".
+Uçtan uca teknik akış
+PDF slayt → (ingestion) → slayt slayt metin
+   → (chunking) → embedding'e uygun parçalar
+   → (embedding) → vektörler
+   → (vector store) → Qdrant'a kaydet
+   
+Soru sorulunca:
+soru → embedding → vector store'da benzer slaytları bul
+   → agent (LangGraph): "yeterli mi? değilse web_search çağır"
+   → LLM: kaynaklara dayanarak cevap üret
+   → evaluation: cevap kaynağa sadık mı kontrol et
+   → API üzerinden kullanıcıya dön

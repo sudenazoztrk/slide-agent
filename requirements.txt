@@ -1,3 +1,5 @@
 pymupdf
 ollama
 qdrant-client
+langgraph
+ddgs

@@ -1,7 +1,6 @@
 import re
 import ollama
-from search import search
-
+from src.retrieval.search import search
 
 def build_prompt(question: str, hits: list) -> str:
     context_parts = []
