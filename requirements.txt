@@ -3,3 +3,4 @@ ollama
 qdrant-client
 langgraph
 ddgs
+python-dotenv

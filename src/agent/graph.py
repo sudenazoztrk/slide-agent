@@ -1,6 +1,9 @@
+from dotenv import load_dotenv
+load_dotenv()
 from langgraph.graph import StateGraph, END
 from src.agent.state import AgentState
 from src.agent.nodes import retrieve, grade, web_search, generate
+
 
 
 def route_after_grade(state: dict) -> str:
