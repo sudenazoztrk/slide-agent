@@ -1,0 +1,27 @@
+[
+  {
+    "id": "q1",
+    "question": " What is the fundamental difference between Eager Learning and Instance-Based (Lazy) Learning in terms of when the target function is constructed?",
+    "should_use_slides": true
+  },
+  {
+    "id": "q2",
+    "question": "Why is the parameter k typically chosen as an odd number in binary classification problems?",
+    "should_use_slides": true
+  },
+  {
+    "id": "q3",
+    "question": "What happens to the decision boundary and the final prediction behavior as k increases to N (the total number of training samples)?",
+    "should_use_slides": true
+  },
+  {
+    "id": "q4",
+    "question": "What data structure optimizations (such as KD-Trees or Ball Trees) can be used to reduce the O(n) brute-force query time complexity of k-NN, and why do their performance advantages degrade as the number of dimensions increases?",
+    "should_use_slides": false
+  },
+  {
+    "id": "q5",
+    "question": "How does applying dimensionality reduction methods (such as PCA or t-SNE) or automated feature selection algorithms (such as the Relief algorithm) improve k-NN performance on datasets with high multicollinearity and noisy features?",
+    "should_use_slides": false
+  }
+]
