@@ -9,6 +9,11 @@ def route_after_grade(state: dict) -> str:
     else:
         return "web_search"
 
+def save_graph_image(path: str = "agent_graph.png"):
+    graph_image = app.get_graph().draw_mermaid_png()
+    with open(path, "wb") as f:
+        f.write(graph_image)
+    print(f"Grafik görseli kaydedildi: {path}")
 
 graph = StateGraph(AgentState) #boş bir graph oluşturduk, AgentState'i verdik ve bu grafikte taşınacak veri şu şekilde oldu diyoruz.
 
@@ -41,6 +46,8 @@ app = graph.compile() # tüm node/edge tanımlarını bir app nesnesine döndür
 
 
 if __name__ == "__main__":
+    save_graph_image()
+
     for question in ["What is lazy learning?", "What is the transformer attention mechanism?"]:
         result = app.invoke({"question": question})
         print(f"Soru: {question}")
