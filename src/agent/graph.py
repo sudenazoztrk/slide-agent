@@ -41,6 +41,9 @@ app = graph.compile() # tüm node/edge tanımlarını bir app nesnesine döndür
 
 
 if __name__ == "__main__":
-    result = app.invoke({"question": "What is lazy learning?"}) # grafiği çalıştırıyoruz. biz sadece soruyu verdik hangi 
-    #node'ların çalışacağına graf kendisi akışında karar veriyor.
-    print(result["answer"])
+    for question in ["What is lazy learning?", "What is the transformer attention mechanism?"]:
+        result = app.invoke({"question": question})
+        print(f"Soru: {question}")
+        print(f"Yeterli mi: {result['context_sufficient']}")
+        print(f"Cevap: {result['answer']}")
+        print("=" * 50)
