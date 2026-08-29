@@ -1,36 +1,38 @@
-from fastapi import FastAPI
+from dotenv import load_dotenv
+load_dotenv()
+from fastapi import FastAPI, Header, HTTPException, Depends
 from pydantic import BaseModel
 from src.agent.graph import app as agent_app
+import os
 
-app = FastAPI(title="Slayt Agent API") # API'ın ana nesnesi
+
+app = FastAPI(title="Slayt Agent API")
+
+
+def verify_api_key(x_api_key: str = Header(...)):
+    expected_key = os.getenv("MY_API_KEY")
+    if x_api_key != expected_key:
+        raise HTTPException(status_code=401, detail="Geçersiz API key")
+
 
 class AskRequest(BaseModel):
     question: str
-"""
-bu, Pydantic'in temel yapı taşı. BaseModel'den miras alan bir sınıf tanımlıyoruz,
- içine hangi alanların (question: str) bekleneceğini yazıyoruz. FastAPI, /ask adresine bir istek geldiğinde, 
- gelen JSON'ı otomatik olarak bu şablona göre doğruluyor — eğer question alanı yoksa, ya da string değilse, 
- FastAPI otomatik olarak anlamlı bir hata mesajı döndürüyor, bizim elle kontrol yazmamıza hiç gerek kalmıyor.
-"""
+
 
 class AskResponse(BaseModel):
     answer: str
     context_sufficient: bool
     slides_used: list[int]
-"""
-aynı mantık ama bu sefer bizim döndüreceğimiz cevabın şeklini tanımlıyoruz: 
-answer (string), context_sufficient (bool), slides_used (int listesi — hangi slaytların kullanıldığı, 
-projenin başından beri istediğin "kaynak gösterme" özelliği burada API seviyesinde somutlaşıyor).
-"""
+
 
 @app.get("/health")
 def health_check():
     return {"status": "ok"}
 
-@app.post("/ask")
+
+@app.post("/ask", dependencies=[Depends(verify_api_key)])
 def ask(request: AskRequest) -> AskResponse:
     result = agent_app.invoke({"question": request.question})
-
     slides_used = [s["slide_number"] for s in result["retrieved_slides"]]
 
     return AskResponse(
@@ -38,4 +40,3 @@ def ask(request: AskRequest) -> AskResponse:
         context_sufficient=result["context_sufficient"],
         slides_used=slides_used
     )
-
