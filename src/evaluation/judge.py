@@ -7,7 +7,7 @@ def build_context(result: dict) -> str:
     web_results = result.get("web_results", "")
 
     slide_context = "\n\n".join(
-        f"[Slayt {s['slide_number']}]\n{s['text']}" for s in slides
+        f"[{s['source']} - Slayt {s['slide_number']}]\n{s['text']}" for s in slides
     )
 
     if web_results:

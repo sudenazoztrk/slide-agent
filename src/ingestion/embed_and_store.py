@@ -3,9 +3,17 @@ import ollama
 from qdrant_client import QdrantClient
 from qdrant_client.models import Distance, VectorParams
 from qdrant_client.models import PointStruct
+import uuid
+import os
+
+NAMESPACE = uuid.NAMESPACE_DNS
+
+def make_point_id(chunk_id: str) -> str:
+    return str(uuid.uuid5(NAMESPACE, chunk_id))
 
 
-client = QdrantClient(host="localhost", port=6333)
+QDRANT_HOST = os.getenv("QDRANT_HOST", "localhost")
+client = QdrantClient(host=QDRANT_HOST, port=6333)
 
 COLLECTION_NAME = "slayt_agent"
 VECTOR_SIZE = 1024
@@ -29,16 +37,13 @@ def embed_text(text: str) -> list[float]:
     response = ollama.embeddings(model="bge-m3", prompt=text)
     return response["embedding"]
 
-
-
-if __name__ == "__main__":
-    chunks = load_chunks("data/processed/KNN_chunks.json")
-
+def store_chunks(chunks: list[dict]) -> int:
     points = []
-    for i, chunk in enumerate(chunks):
+    for chunk in chunks:
         vector = embed_text(chunk["text"])
+        point_id = make_point_id(chunk["id"])
         point = PointStruct(
-            id=i,
+            id=point_id,
             vector=vector,
             payload={
                 "chunk_id": chunk["id"],
@@ -48,7 +53,11 @@ if __name__ == "__main__":
             }
         )
         points.append(point)
-        print(f"{i+1}/{len(chunks)} embed edildi: {chunk['id']}")
 
     client.upsert(collection_name=COLLECTION_NAME, points=points)
-    print(f"\nToplam {len(points)} chunk Qdrant'a kaydedildi.")
+    return len(points)
+
+if __name__ == "__main__":
+    chunks = load_chunks("data/processed/KNN_chunks.json")
+    count = store_chunks(chunks)
+    print(f"\nToplam {count} chunk Qdrant'a kaydedildi.")

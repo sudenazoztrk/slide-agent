@@ -1,7 +1,9 @@
 from qdrant_client import QdrantClient
 import ollama
+import os
 
-client = QdrantClient(host="localhost", port=6333) #qdrant'a bağlan
+QDRANT_HOST = os.getenv("QDRANT_HOST", "localhost")
+client = QdrantClient(host=QDRANT_HOST, port=6333)
 COLLECTION_NAME = "slayt_agent" 
 
 
